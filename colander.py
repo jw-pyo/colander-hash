@@ -2,7 +2,7 @@
 # github.com/jw-pyo/colander-hash
 
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import collections
 
 # unit
@@ -20,6 +20,9 @@ class Colander(object):
         self.colander_size = 1 # return length of colander
         self.histogram = dict() # distribution of colander: the number of colander
         self.set_count = 1 # the count which make chunk list. It affects the speed and accuracy
+    @property
+    def bin_count(self):
+        return len(self.chunk_list)
     def printParam(self):
         """
         print all parameters of corresponding object.
@@ -28,7 +31,7 @@ class Colander(object):
         data path: {}
         chunk size: {}
         total chunk: {}
-        """.format(self.path, self.chunk_size, len(self.chunk_list))
+        """.format(self.path, self.chunk_size, self.bin_count)
         )
 
     def chopByChunk(self, chunk_size = 32*MB, set_count=1):
@@ -76,7 +79,7 @@ class Colander(object):
     def printHistogram(self, option):
         """
         print histogram of colander distribution.
-        option: 
+        option:
             "count": just print the number of each colander
             "percent": print the percent of each colander compared to entire number
         """
@@ -85,7 +88,7 @@ class Colander(object):
         elif option == "percent":
             print("{")
             for key in list(self.histogram.keys()):
-                print("{}: {}".format(key, self.histogram[key]/len(self.chunk_list)))
+                print("{}: {}".format(key, self.histogram[key]/self.bin_count))
             print("}")
         else:
             print(self.histogram)
@@ -107,11 +110,13 @@ class Colander(object):
 
 
 if __name__ == "__main__":
-    func = Colander("/Users/pyo/blockchain/colander-hash/sample-data/test.txt")
+    #func = Colander("/Users/pyo/blockchain/colander-hash/sample-data/test.txt")
+    func = Colander("/home/jwpyo/colander-hash/sample-data/test.txt")
     func.chopByChunk(16*B, set_count=5)
     func.makeHistogram()
     #func.printHistogram("percent")
     func.printHistogram("count")
     func.printParam()
+    print(func.bin_count)
     #func.plotHistogram()
-    #print(b'\x7E'.decode("ascii")) 
+    #print(b'\x7E'.decode("ascii"))
