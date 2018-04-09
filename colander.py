@@ -5,6 +5,8 @@ import numpy as np
 #import matplotlib.pyplot as plt
 import collections
 
+from metric import Metric
+
 # unit
 B = 1
 KB = 1024
@@ -76,6 +78,14 @@ class Colander(object):
                 self.histogram[hash_result] += 1
             else:
                 self.histogram[hash_result] = 1
+    def normalizeHistogram(self):
+        """
+        normalize histogram
+        """
+        bin_count = self.bin_count
+        for key in self.histogram.keys():
+            self.histogram[key] = float(self.histogram[key])/bin_count
+
     def printHistogram(self, option):
         """
         print histogram of colander distribution.
@@ -96,7 +106,13 @@ class Colander(object):
         """
         compare the distribution of two histogram.
         """
-        pass
+        for key in list(other_hist.keys()):
+            if key not in self.histogram.keys():
+                self.histogram[key] = 0
+        for key in list(self.histogram.keys()):
+            if key not in list(other_hist.keys()):
+                other_hist[key] = 0
+        print(Metric.chi_square(self.histogram, other_hist))
     def plotHistogram(self):
         """
         plot histogram.
@@ -111,12 +127,19 @@ class Colander(object):
 
 if __name__ == "__main__":
     #func = Colander("/Users/pyo/blockchain/colander-hash/sample-data/test.txt")
-    func = Colander("/home/jwpyo/colander-hash/sample-data/test.txt")
-    func.chopByChunk(16*B, set_count=5)
-    func.makeHistogram()
-    #func.printHistogram("percent")
-    func.printHistogram("count")
-    func.printParam()
-    print(func.bin_count)
+    data_1 = Colander("/home/jwpyo/colander-hash/sample-data/test1.txt")
+    data_2 = Colander("/home/jwpyo/colander-hash/sample-data/test2.txt")
+    data_1.chopByChunk(16*B, set_count=5)
+    data_2.chopByChunk(16*B, set_count=5)
+    data_1.makeHistogram()
+    data_2.makeHistogram()
+    data_1.normalizeHistogram()
+    data_2.normalizeHistogram()
+    data_1.printHistogram("count")
+    data_2.printHistogram("count")
+
+    data_1.compareHistogram(data_2.histogram)
+    #func.printParam()
+    #print(func.bin_count)
     #func.plotHistogram()
     #print(b'\x7E'.decode("ascii"))
