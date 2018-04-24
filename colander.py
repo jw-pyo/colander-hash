@@ -2,10 +2,13 @@
 # github.com/jw-pyo/colander-hash
 
 import numpy as np
-import matplotlib.pyplot as plt
-import collections
+#import matplotlib.pyplot as plt
+from collections import OrderedDict
 import binascii
 from bitstring import BitArray
+import inspect
+
+from timer import Timer
 from metric import Metric
 
 # unit
@@ -21,10 +24,10 @@ class Colander(object):
         self.path = path
         self.chunk_size = None # single chunk size
         self.chunk_list = []
-        self.colander_size = 7*bit # return length of colander
+        self.key_length = 5*bit # return length of colander(key of histogram)
         self.histogram = dict() # distribution of colander: the number of colander
         self.set_count = 1 # the count which make chunk list. It affects the speed and accuracy
-        self.lower_bound = 0
+        self.lower_bound = 0 # no appears in the histogram under this value
     @property
     def bin_count(self):
         return len(self.chunk_list)
@@ -45,51 +48,52 @@ class Colander(object):
         path: file path
         return: bool
         """
-        self.chunk_size = chunk_size
-        self.set_count = set_count
-        chunk_list = []
-        dummy = bytes(('0'*int(chunk_size/set_count)).encode("utf-8"))
-        #dummy = str("0"*int(chunk_size/set_count))
-        for i in range(set_count):
+        with Timer(f_name=inspect.stack()[0][3]) as t:
+            self.chunk_size = chunk_size
+            self.set_count = set_count
+            chunk_list = []
+            dummy = bytes(('0'*int(chunk_size/set_count)).encode("utf-8"))
+            #dummy = str("0"*int(chunk_size/set_count))
             with open(self.path, "rb") as f:
-                fstream = dummy*i + f.read()
-                bitarray = BitArray(bytes=fstream)
-                chunk_list = [bitarray.bin[i*chunk_size:(i+1)*chunk_size] for i in range(int(len(fstream)/chunk_size))]
-            self.chunk_list.extend(chunk_list)
+                for i in range(set_count):
+                    fstream = dummy*i + f.read()
+                    bitarray = BitArray(bytes=fstream).bin
+                    self.chunk_list.extend([bitarray[i*chunk_size:(i+1)*chunk_size] for i in range(int(len(fstream)/chunk_size))])
         return True
-    def setColanderSize(self, k):
+    def setKeyLength(self, k):
         """
-        setter of colander_size
+        setter of key_length
         k: new colander size
         """
-        self.colander_size = k
+        self.key_length = k
     def colander(self, i):
         """
         pass single chunk to the colander hash function and return result
         i: the i-th chunk in chunk_list
         return: [0-Z]
         """
-        return self.chunk_list[i][:self.colander_size]
+        return self.chunk_list[i][:self.key_length]
     def compareChunk(self, i, j):
         pass
     def makeHistogram(self, lower_bound=0):
         """
         make histogram
         """
-        self.lower_bound = lower_bound
-        for i, chunk in enumerate(self.chunk_list):
-            hash_result = self.colander(i)
-            if hash_result in self.histogram.keys():
-                self.histogram[hash_result] += 1
-            else:
-                self.histogram[hash_result] = 1
-        # erase key-value whose value is under lower_bound in histogram
-        pop_key_list = []
-        for k,v in self.histogram.items():
-            if v <= self.lower_bound:
-                pop_key_list.append(k)
-        for element in pop_key_list:
-            self.histogram.pop(element)
+        with Timer(f_name=inspect.stack()[0][3]) as t:
+            self.lower_bound = lower_bound
+            for i, chunk in enumerate(self.chunk_list):
+                hash_result = self.colander(i)
+                if hash_result in self.histogram.keys():
+                    self.histogram[hash_result] += 1
+                else:
+                    self.histogram[hash_result] = 1
+            # erase key-value whose value is under lower_bound in histogram
+            pop_key_list = []
+            for k,v in self.histogram.items():
+                if v <= self.lower_bound:
+                    pop_key_list.append(k)
+            for element in pop_key_list:
+                self.histogram.pop(element)
 
     def normalizeHistogram(self):
         """
@@ -106,60 +110,76 @@ class Colander(object):
             "count": just print the number of each colander
             "percent": print the percent of each colander compared to entire number
         """
-        print("{")
-        if option == "count":
-            for key, value in self.histogram.items():
-                if value > self.lower_bound:
+        with Timer(f_name=inspect.stack()[0][3]) as t:
+            print("{")
+            if option == "count":
+                for key, value in self.histogram.items():
                     print("{}: {}".format(key, value))
-                else:
-                    pass
-        elif option == "percent":
-            for key in list(self.histogram.keys()):
-                if value > self.lower_bound:
+            elif option == "percent":
+                for key in list(self.histogram.keys()):
                     print("{}: {}".format(binascii.hexlify(key).decode(), self.histogram[key]/self.bin_count))
-                else:
-                    pass
-        else:
-            print(self.histogram)
-        print("}")
+            else:
+                for key, value in self.histogram.items():
+                    print("{}: {}".format(key, value))
+            print("}")
     def compareHistogram(self, other_hist):
         """
         compare the distribution of two histogram.
         """
-        for key in list(other_hist.keys()):
-            if key not in list(self.histogram.keys()):
-                self.histogram[key] = 0
-        for key in list(self.histogram.keys()):
-            if key not in list(other_hist.keys()):
-                other_hist[key] = 0
-        print(Metric.chi_square(self.histogram, other_hist))
+        with Timer(f_name=inspect.stack()[0][3]) as t:
+            for key in list(other_hist.keys()):
+                if key not in list(self.histogram.keys()):
+                    self.histogram[key] = 0
+            for key in list(self.histogram.keys()):
+                if key not in list(other_hist.keys()):
+                    other_hist[key] = 0
+            print(Metric.chi_square(self.histogram, other_hist))
     def plotHistogram(self, low_bound=0):
         """
         plot histogram.
         """
-        # the key of self.histogram is sorted in ascending order
-        od = collections.OrderedDict(sorted(self.histogram.items()))
+        with Timer(f_name=inspect.stack()[0][3]) as t:
+            # the key of self.histogram is sorted in ascending order
+            od = OrderedDict(sorted(self.histogram.items()))
 
-        labels = list(od.keys())
-        plt.bar(range(len(self.histogram)), self.histogram.values(), color='g', tick_label = labels)
-        plt.show()
+            labels = list(od.keys())
+            plt.bar(range(len(self.histogram)), self.histogram.values(), color='g', tick_label = labels)
+            plt.show()
+    def XORTopN(self, n):
+        """
+        sort the key in descending order and XOR the top n keys.
+        n: the number of blocks to be operated XOR
+        return: the result of XOR
+        """
+        with Timer(f_name=inspect.stack()[0][3]) as t:
+            od = OrderedDict(sorted(self.histogram.items(), key=lambda kv: kv[1], reverse=True))
+            if len(list(od.keys())) == 0:
+                raise ValueError("there is no key in histogram")
+            ret = list(od.keys())[0]
+            for key in list(od.keys())[1:n]:
+                ret = Metric.xor(ret, key, bin=True)
+        return ret
+
 
 
 if __name__ == "__main__":
-    data_1 = Colander("/Users/pyo/blockchain/colander-hash/sample-data/cat_color.jpg")
-    data_2 = Colander("/Users/pyo/blockchain/colander-hash/sample-data/bird.jpg")
-    data_1.chopByChunk(4*B, set_count=1)
-    data_2.chopByChunk(4*B, set_count=1)
-    data_1.makeHistogram(lower_bound=5*bit)
-    data_2.makeHistogram(lower_bound=5*bit)
+    data_1 = Colander("/home/jwpyo/colander-hash/sample-data/insurance1.csv")
+    data_2 = Colander("/home/jwpyo/colander-hash/sample-data/insurance2.csv")
+    data_1.chopByChunk(1*MB, set_count=1)
+    data_2.chopByChunk(1*MB, set_count=1)
+    data_1.setKeyLength(8)
+    data_2.setKeyLength(8)
+    data_1.makeHistogram(lower_bound=1*bit)
+    data_2.makeHistogram(lower_bound=1*bit)
     #data_1.normalizeHistogram()
     #data_2.normalizeHistogram()
     data_1.printHistogram(option="count")
     data_2.printHistogram(option="count")
-    data_1.plotHistogram()
-    data_2.plotHistogram()
-    data_1.compareHistogram(data_2.histogram)
-    print(Metric.xor('abc가0000'.encode(), 'ab0긔0000'.encode()))
+    #data_1.plotHistogram()
+    #data_2.plotHistogram()
+    #data_1.compareHistogram(data_2.histogram)
+    print("data1 top10: ", data_1.XORTopN(10))
+    print("data2 top10: ", data_2.XORTopN(10))
     #func.printParam()
     #print(func.bin_count)
     #func.plotHistogram()

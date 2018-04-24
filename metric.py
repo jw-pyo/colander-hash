@@ -7,19 +7,41 @@ class Metric(object):
     def __init__(self):
         pass
     @staticmethod
-    def xor(obj1, obj2):
+    def xor(obj1, obj2, **kwargs):
         """
         XOR operation with two same-size byte stream.
-        obj1: bytes of size k
-        obj2: bytes of size k
-        return: obj1 XOR obj2 of size k
+        bytes obj1: bytes of size k
+        bytes obj2: bytes of size k
+        bytes return: obj1 XOR obj2 of size k
         """
-        b1 = BitArray(bytes=obj1)
-        b2 = BitArray(bytes=obj2)
-        ret = ''
-        for x, y in zip(b1.bin, b2.bin):
-            ret += str(ord(x) ^ ord(y))
-        return ret 
+        if "bytes" in kwargs:
+            b1 = BitArray(bytes=obj1)
+            b2 = BitArray(bytes=obj2)
+            ret = ''
+            for x, y in zip(b1.bin, b2.bin):
+                ret += str(ord(x) ^ ord(y))
+            return ret
+        elif "bin" in kwargs:
+            b1 = BitArray(bin=obj1)
+            b2 = BitArray(bin=obj2)
+            ret = ''
+            for x, y in zip(b1.bin, b2.bin):
+                ret += str(ord(x) ^ ord(y))
+            return ret
+        elif "hex" in kwargs:
+            b1 = BitArray(hex=obj1)
+            b2 = BitArray(hex=obj2)
+            ret = ''
+            for x, y in zip(b1.bin, b2.bin):
+                ret += str(ord(x) ^ ord(y))
+            return ret
+        else:
+            b1 = BitArray(bytes=obj1)
+            b2 = BitArray(bytes=obj2)
+            ret = ''
+            for x, y in zip(b1.bin, b2.bin):
+                ret += str(ord(x) ^ ord(y))
+            return ret
 
 
     @staticmethod
